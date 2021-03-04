@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.4.0/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2p5aHB5bzEzMDI3MjNucWx4dmhvbW5wYyJ9.ZjLMWjog4imdrZhtheCOtA';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: true,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                LogoSvg(),
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"ih8u79arb6","label":"0301_Sanzhen-tushuo-material-date.csv","color":[62,172,168],"allData":[["____","j_m�ng y�b_o",115.31073,40.454426,"yongle 18","1420-01-01T00:00:00Z","established","earth"],["____","j_m�ng y�b_o",115.31073,40.454426,"chenghua 17","1481-01-01T00:00:00Z","fortified","earth"],["____","j_m�ng y�b_o",115.31073,40.454426,"longqing 4","1570-01-01T00:00:00Z","fortified with brick","brick"],["___","n�ngyu_n b_o",116.0931835,40.78152922,"early Yongle",null,"established","earth"],["___","n�ngyu_n b_o",116.0931835,40.78152922,"wanli 6","1578-01-01T00:00:00Z","fortified with brick","brick"],["_____","w�nqu�n zu_ w�ich_ng",114.717407,40.675827,"zhengtong 0","1436-01-01T00:00:00Z","established","brick"],["_____","w�nqu�n zu_ w�ich_ng",114.717407,40.675827,"jiajing 42","1563-01-01T00:00:00Z","fortified with brick","brick"],["___","x_nh_k_u",114.5629218,40.95635624,"xuande 10","1435-01-01T00:00:00Z","established","earth"],["___","x_nh_k_u",114.5629218,40.95635624,"jiajing 6","1527-01-01T00:00:00Z","fortified","earth"],["___","x_nh_k_u",114.5629218,40.95635624,"longqing 5","1571-01-01T00:00:00Z","fortified with brick","brick"],["___","x_n k_ik_u",114.6834281,40.94598421,"xuande 10","1435-01-01T00:00:00Z","established","earth"],["___","x_n k_ik_u",114.6834281,40.94598421,"jiajing 7","1528-01-01T00:00:00Z","fortified","earth"],["___","x_n k_ik_u",114.6834281,40.94598421,"longqing 4","1570-01-01T00:00:00Z","fortified with brick","brick"],["___","sh�nf�ng b_o",114.7586158,40.95298551,"chenghua 15","1479-01-01T00:00:00Z","established","earth"],["___","sh�nf�ng b_o",114.7586158,40.95298551,"jiajing 12","1533-01-01T00:00:00Z","fortified","earth"],["___","sh�nf�ng b_o",114.7586158,40.95298551,"wanli 0","1573-01-01T00:00:00Z","fortified with brick","brick"],["____","zh_ngji_k_u b_o",114.896527,40.79095793,"xuande 4","1429-01-01T00:00:00Z","established","earth"],["____","zh_ngji_k_u b_o",114.896527,40.79095793,"jiajing",null,"fortified","earth"],["____","zh_ngji_k_u b_o",114.896527,40.79095793,"wanli 2","1574-01-01T00:00:00Z","fortified with brick","brick"],["_____","w�nqu�n y�uw�i ch_ng",114.734733,40.864902,"hongwu 26","1393-01-01T00:00:00Z","established","earth"],["_____","w�nqu�n y�uw�i ch_ng",114.734733,40.864902,"yongle 2","1404-01-01T00:00:00Z","fortified with brick","brick"],["_____","w�nqu�n y�uw�i ch_ng",114.734733,40.864902,"wanli 27","1599-01-01T00:00:00Z","fortified with brick","brick"],["___\n _____","ch�d�o ch_ng \n_ j_y_nggu_n _",116.0639085,40.28991945,"jiajing 30","1551-01-01T00:00:00Z","fortified with brick","brick"],["___","f�n sh_nb_o",115.4409793,40.34259671,"wanli 7","1579-01-01T00:00:00Z","fortified","earth"],["____","b_o_n ji�ch_ng",115.403694,40.436127,"yongle 13","1415-01-01T00:00:00Z","established","earth"],["____","b_o_n ji�ch_ng",115.403694,40.436127,"jiajing 45","1566-01-01T00:00:00Z","fortified","brick"],["____","b_o_n x_nch_ng",114.4888002,40.46167707,"jingtai 2","1451-01-01T00:00:00Z","established","earth"],["____","b_o_n x_nch_ng",114.4888002,40.46167707,"tianshun 8","1464-01-01T00:00:00Z","fortified with brick","brick"],["____","b_o_n x_nch_ng",114.4888002,40.46167707,"jiajing 43","1564-01-01T00:00:00Z","fortified with brick","brick"],["____","li�ngti�n t�nb_o",115.4986075,40.40545984,"hongwu 25","1392-01-01T00:00:00Z","established","earth"],["____","li�ngti�n t�nb_o",115.4986075,40.40545984,"longqing 4","1570-01-01T00:00:00Z","fortified with brick","brick"],["___","sh_ ch_ngb_o",114.4702607,40.70442667,"jingtai 2","1451-01-01T00:00:00Z","established","earth"],["___","sh_ ch_ngb_o",114.4702607,40.70442667,"longqing 3","1569-01-01T00:00:00Z","fortified with brick","brick"],["___","sh_ ch_ngb_o",114.4702607,40.70442667,"longqing 5","1571-01-01T00:00:00Z","fortified with brick","brick"],["____","y�l�n y�b_o",115.871825,40.37485292,"longqing 3","1569-01-01T00:00:00Z","fortified with brick","brick"],["___","j�ng h�b_o",115.9745028,40.51560388,"jiajing 29","1550-01-01T00:00:00Z","established","earth"],["___","j�ng h�b_o",115.9745028,40.51560388,"longqing 0","1567-01-01T00:00:00Z","fortified with brick","brick"],["___","y_ngn�ng ch_ng",116.1784222,40.5243578,"xuande 0","1426-01-01T00:00:00Z","established","earth"],["___","y_ngn�ng ch_ng",116.1784222,40.5243578,"xuande 5","1430-01-01T00:00:00Z","fortified with brick","brick"],["___","y_ngn�ng ch_ng",116.1784222,40.5243578,"jiajing32","1553-01-01T00:00:00Z","fortified with brick","brick"],["___","li�b_nb_o",116.225564,40.56858703,"wanli 22","1594-01-01T00:00:00Z","established","earth"],["____","zh_us� g_ub_o",114.4702607,40.70442667,"jiajing 19","1540-01-01T00:00:00Z","established","brick"],["____","zh_us� g_ub_o",114.4702607,40.70442667,"longqing 3","1569-01-01T00:00:00Z","fortified with brick","brick"],["____","y�nq�ng zh_uch_ng",115.9878727,40.45666427,"yongle 11","1413-01-01T00:00:00Z","established","earth"],["____","y�nq�ng zh_uch_ng",115.9878727,40.45666427,"jingtai 2","1451-01-01T00:00:00Z","fortified with brick","brick"],["____","y�nq�ng zh_uch_ng",115.9878727,40.45666427,"wanli 7","1579-01-01T00:00:00Z","fortified with brick","brick"],["____","d_ng b_l_ b_o",115.4711123,40.42938139,"hongwu 25","1392-01-01T00:00:00Z","established","earth"],["____","x_ b_l_ b_o",115.3733918,40.43033048,"hongwu 25","1392-01-01T00:00:00Z","established","earth"],["____","m� y�k_u b_o",115.580289,40.49520664,"hongwu 25","1392-01-01T00:00:00Z","established","earth"],["____","m� y�k_u b_o",115.580289,40.49520664,"wanli 7","1579-01-01T00:00:00Z","fortified","earth"],["___","t_m� y�",115.6338473,40.37081591,"zhengtong 14","1449-01-01T00:00:00Z","established","earth"],["___","t_m� y�",115.6338473,40.37081591,"jiajing 45","1566-01-01T00:00:00Z","fortified","earth"],["___","t_m� y�",115.6338473,40.37081591,"longqing 3","1569-01-01T00:00:00Z","fortified with brick","brick"],["___","huailai cheng",115.754772,40.35446409,"early Hongwu",null,"established","earth"],["___","huailai cheng",115.754772,40.35446409,"yongle 20","1422-01-01T00:00:00Z","fortified","earth"],["___","huailai cheng",115.754772,40.35446409,"zhengtong",null,"fortified","stone"],["___","huailai cheng",115.754772,40.35446409,"jingtai 5","1454-01-01T00:00:00Z","fortified with brick","brick"],["___","huailai cheng",115.754772,40.35446409,"jiajing 45","1566-01-01T00:00:00Z","fortified with brick","brick"],["___","huailai cheng",115.754772,40.35446409,"wanli 14","1586-01-01T00:00:00Z","fortified with brick","brick"],["____","h_ih�n l_ngb_o",116.3679464,40.56187835,"jiajing 31","1552-01-01T00:00:00Z","established","earth"],["____","h_ih�n l_ngb_o",116.3679464,40.56187835,"longqing 4","1570-01-01T00:00:00Z","fortified with brick","brick"],["____","sihaitai bao",116.394039,40.5290065,"tianshun 8","1464-01-01T00:00:00Z","established","earth"],["____","sihaitai bao",116.394039,40.5290065,"hongzhi 12","1499-01-01T00:00:00Z","fortified","stone"],["____","sihaitai bao",116.394039,40.5290065,"jiajing 44","1565-01-01T00:00:00Z","fortified with brick","brick"],["____","sihaitai bao",116.394039,40.5290065,"wanli 31","1603-01-01T00:00:00Z","fortified with brick","brick"],["____","xi_nm_ l�nb_o",114.4798839,40.80681829,"xuande 10","1435-01-01T00:00:00Z","established","earth"],["____","xi_nm_ l�nb_o",114.4798839,40.80681829,"longqing 5","1571-01-01T00:00:00Z","fortified with brick","brick"],["___","z_g_ub_o",114.431132,40.66738347,"zhengtong 2","1437-01-01T00:00:00Z","established","earth"],["___","z_g_ub_o",114.431132,40.66738347,"jingtai",null,"fortified",null],["___","z_g_ub_o",114.431132,40.66738347,"chenghua",null,"fortified",null],["___","z_g_ub_o",114.431132,40.66738347,"jiajing",null,"fortified",null],["___","z_g_ub_o",114.431132,40.66738347,"wanli 2","1574-01-01T00:00:00Z","fortified with brick","brick"],["___","d�k_u b_o",114.281098,40.69081465,"hongzhi 9","1496-01-01T00:00:00Z","established","earth"],["___","d�k_u b_o",114.281098,40.69081465,"wanli 5","1577-01-01T00:00:00Z","fortified with brick","brick"],["____","x_ y�ngh_ b_o",114.1875397,40.68419341,"zhengtong 5","1440-01-01T00:00:00Z","established","earth"],["____","x_ y�ngh_ b_o",114.1875397,40.68419341,"chenghua 10","1474-01-01T00:00:00Z","fortified","earth"],["____","x_ y�ngh_ b_o",114.1875397,40.68419341,"wanli 31","1603-01-01T00:00:00Z","fortified with brick","brick"],["____","lixintun bao",114.3398082,40.51512941,"jiajing 16","1537-01-01T00:00:00Z","established","earth"],["____","lixintun bao",114.3398082,40.51512941,"wanli 8","1580-01-01T00:00:00Z","fortified","brick and stone"],["___","hu�i_n ch_ng",114.4915569,40.46343035,"hongwu 25","1392-01-01T00:00:00Z","established","earth"],["___","hu�i_n ch_ng",114.4915569,40.46343035,"longqing 3","1569-01-01T00:00:00Z","fortified with brick","brick"],["____","m_ sh_n d�b_o",116.0735338,40.82708233,"wanli 8","1580-01-01T00:00:00Z","established","earth"],["____","n�ngyu_n zh�nb_o",114.4915569,40.46343035,"early Yongle",null,"established","earth"],["____","n�ngyu_n zh�nb_o",114.4915569,40.46343035,"wanli 6","1578-01-01T00:00:00Z","fortified with brick","brick"],["____","l�ngm_n su_ch_ng",115.9856431,40.93817818,"xuande 6","1431-01-01T00:00:00Z","fortified with brick","brick"],["____","l�ngm_n su_ch_ng",115.9856431,40.93817818,"longqing 4","1570-01-01T00:00:00Z","fortified with brick","brick"],["___","m�m_ b_o",115.9382646,41.0009115,"hongzhi 10","1497-01-01T00:00:00Z","established","earth"],["___","m�m_ b_o",115.9382646,41.0009115,"wanli 15","1587-01-01T00:00:00Z","fortified with brick","brick"],["___","y�ngti�nb_o",115.9451311,40.83539501,"jiajing 37","1558-01-01T00:00:00Z","established","earth"],["___","y�ngti�nb_o",115.9451311,40.83539501,"wanli 16","1588-01-01T00:00:00Z","fortified with brick","brick"],["____","d_shu_ y�b_o",116.0694139,40.70955441,"hongzhi 8","1495-01-01T00:00:00Z","established","earth"],["____","d_shu_ y�b_o",116.0694139,40.70955441,"longqing 3","1569-01-01T00:00:00Z","fortified with brick","brick"],["____","ch�ng_n l_ngch_ng",115.6806485,40.56265799,"yongle 9","1411-01-01T00:00:00Z","established","earth"],["___","di_o� b_o",115.8372036,40.73822021,"xuande 6","1431-01-01T00:00:00Z","established","earth"],["___","di_o� b_o",115.8372036,40.73822021,"chenghua 8","1472-01-01T00:00:00Z","fortified with brick","brick"],["___","di_o� b_o",115.8372036,40.73822021,"longqing 4","1570-01-01T00:00:00Z","fortified with brick","brick"],["___","d�sh� ch_ng",115.7217817,41.31437409,"xuande 5","1430-01-01T00:00:00Z","established","earth"],["___","d�sh� ch_ng",115.7217817,41.31437409,"jingtai 3","1452-01-01T00:00:00Z",null,null],["___","d�sh� ch_ng",115.7217817,41.31437409,"wanli 10","1582-01-01T00:00:00Z","fortified with brick","brick"],["___","m_ y�ngb_o",115.6661367,41.14123515,"xuande 7","1432-01-01T00:00:00Z","established","earth"],["___","m_ y�ngb_o",115.6661367,41.14123515,"zhengtong 8","1443-01-01T00:00:00Z","fortified with brick","brick"],["___","m_ y�ngb_o",115.6661367,41.14123515,"early longqing",null,"fortified with brick","brick"],["___","q_ngqu�nb_o",115.874188,41.23552101,"jingtai 4","1453-01-01T00:00:00Z","established","earth"],["___","q_ngqu�nb_o",115.874188,41.23552101,"longqing 5","1571-01-01T00:00:00Z","fortified","earth"],["___","q_ngqu�nb_o",115.874188,41.23552101,"wanli 15","1587-01-01T00:00:00Z","fortified with brick","brick"],["___","s_ngsh� b_o",115.5720663,41.15571251,"jiajing 25","1546-01-01T00:00:00Z","established","earth"],["___","s_ngsh� b_o",115.5720663,41.15571251,"wanli 2","1574-01-01T00:00:00Z","fortified with brick","brick"],["___","j_nz_ b_o",115.5892324,41.20635812,"jiajing 25","1546-01-01T00:00:00Z","established","earth"],["___","j_nz_ b_o",115.5892324,41.20635812,"wanli 8","1580-01-01T00:00:00Z","fortified with brick","brick"],["___","zh�n_n b_o",115.8956972,41.12150443,"chenghua 8","1472-01-01T00:00:00Z","established","earth"],["___","zh�n_n b_o",115.8956972,41.12150443,"zhengde 6","1511-01-01T00:00:00Z","fortified","earth"],["___","zh�n_n b_o",115.8956972,41.12150443,"wanli 15","1587-01-01T00:00:00Z","fortified with brick","brick"],["___","chicheng bao",115.824637,40.91311057,"xuande 5","1430-01-01T00:00:00Z","established","earth"],["___","chicheng bao",115.824637,40.91311057,"early jingtai",null,"fortified with brick","brick"],["___","chicheng bao",115.824637,40.91311057,"wanli 24","1596-01-01T00:00:00Z","fortified","brick and stone"],["___","zhenning bao",115.6783815,40.97068343,"hongzhi 11","1498-01-01T00:00:00Z","established","earth"],["___","zhenning bao",115.6783815,40.97068343,"jiajing 23","1544-01-01T00:00:00Z","fortified","stone"],["___","zhenning bao",115.6783815,40.97068343,"wanli 15","1587-01-01T00:00:00Z","fortified with brick","brick"],["___","y�nzh_u b_o",115.6791952,40.56265799,"xuande 5","1430-01-01T00:00:00Z","fortified","earth"],["___","y�nzh_u b_o",115.6791952,40.56265799,"longqing 5","1571-01-01T00:00:00Z","fortified with brick","brick"],["____","banbidian bao",115.7547117,41.20083892,"jiajing 37","1558-01-01T00:00:00Z","established","earth"],["____","banbidian bao",115.7547117,41.20083892,"longqing 0","1567-01-01T00:00:00Z","fortified","earth"],["____","banbidian bao",115.7547117,41.20083892,"wanli 11","1583-01-01T00:00:00Z","fortified","stone"],["____","m_o_r y�b_o",115.764689,41.12314971,"unidentified",null,null,null],["___","c_ngsh�ng b_o",115.7166238,41.0843446,"jiajing 37","1558-01-01T00:00:00Z","established","earth"],["___","c_ngsh�ng b_o",115.7166238,41.0843446,"longqing 6","1572-01-01T00:00:00Z","fortified","earth"],["___","c_ngsh�ng b_o",115.7166238,41.0843446,"wanli 16","1588-01-01T00:00:00Z","fortified with brick","brick"],["____","heishiling bao",114.6432965,39.58299747,"zhengde 2","1506-01-01T00:00:00Z","established","earth"],["____","heishiling bao",114.6432965,39.58299747,"wanli 0","1573-01-01T00:00:00Z","fortified","stone"],["___","gu_ngch_ng ch_ng",114.7009747,39.35028977,"hongwu 12","1379-01-01T00:00:00Z","established","brick"],["___","t�ohu_ b_o",114.9968943,40.04686022,"jiajing 44","1565-01-01T00:00:00Z","established","earth"],["___","t�ohu_ b_o",114.9968943,40.04686022,"wanli 12","1584-01-01T00:00:00Z","fortified","earth"],["___","w�izh_u ch_ng",114.5794751,39.84020962,"hongwu 7","1374-01-01T00:00:00Z","established","brick"],["___","w�izh_u ch_ng",114.5794751,39.84020962,"wanli 11","1583-01-01T00:00:00Z","fortified","brick"],["__+___","hutuozhan bao",114.7097745,40.31864552,"jiajing 45","1566-01-01T00:00:00Z","fortified","earth"],["___","sh_nj_ng b_o",114.8357115,40.3981693,"zhengde 5","1510-01-01T00:00:00Z","established","earth"],["___","sh_nj_ng b_o",114.8357115,40.3981693,"wanli 7","1579-01-01T00:00:00Z","fortified with brick","brick"],["_____","sh�nsh�ng chu_nd_ng ch_ng",114.5651732,40.19182327,"tianshun 4","1460-01-01T00:00:00Z","established","earth"],["_____","sh�nsh�ng chu_nd_ng ch_ng",114.5651732,40.19182327,"jiajing 43","1564-01-01T00:00:00Z","fortified","earth"],["_____","sh�nsh�ng chu_nd_ng ch_ng",114.5651732,40.19182327,"wanli 4","1576-01-01T00:00:00Z","fortified with brick","brick"],["_____","sh�nsh�ng chu_nx_ ch_ng",114.1614256,40.10574739,"tianshun 4","1460-01-01T00:00:00Z","established","earth"],["_____","sh�nsh�ng chu_nx_ ch_ng",114.1614256,40.10574739,"jiajing 24","1545-01-01T00:00:00Z","fortified","earth"],["_____","sh�nsh�ng chu_nx_ ch_ng",114.1614256,40.10574739,"wanli 2","1574-01-01T00:00:00Z","fortified with brick","brick"],["____","xi_o b�iy�ng b_o",115.369137,40.74742506,"xuande 5","1430-01-01T00:00:00Z","established","earth"],["____","xi_o b�iy�ng b_o",115.369137,40.74742506,"jiajing 43","1564-01-01T00:00:00Z","fortified","earth"],["____","xi_o b�iy�ng b_o",115.369137,40.74742506,"wanli 24","1596-01-01T00:00:00Z","fortified with brick","brick"],["____","s_nch�k_u b_o",115.6753809,40.8092999,"jiajing 38","1559-01-01T00:00:00Z","established","earth"],["____","s_nch�k_u b_o",115.6753809,40.8092999,"wanli 17","1589-01-01T00:00:00Z","fortified with brick","brick"],["____","j_nji_zhu_ng b_o",115.5888636,40.89136396,"chenghua 2","1466-01-01T00:00:00Z","established","earth"],["____","j_nji_zhu_ng b_o",115.5888636,40.89136396,"zhengde 13","1518-01-01T00:00:00Z","fortified","earth"],["____","j_nji_zhu_ng b_o",115.5888636,40.89136396,"wanli 4","1576-01-01T00:00:00Z","fortified with brick","brick"],["____","d� b�iy�ng b_o",115.2942927,40.7541873,"jingtai-jiajing",null,"established","earth"],["____","d� b�iy�ng b_o",115.2942927,40.7541873,"wanli 13","1585-01-01T00:00:00Z","fortified with brick","brick"],["___","g_y�b_o",115.187176,40.74690486,"xuande 5","1430-01-01T00:00:00Z","established","earth"],["___","g_y�b_o",115.187176,40.74690486,"jiajing 43","1564-01-01T00:00:00Z","fortified","earth"],["___","g_y�b_o",115.187176,40.74690486,"wanli 6","1578-01-01T00:00:00Z","fortified with brick","brick"],["____","ch�ng y�k_u b_o",115.1535304,40.77186991,"wanli 15","1587-01-01T00:00:00Z","fortified with brick","brick"],["___","l�ngm_n ch_ng",115.5799372,40.79682558,"xuande 6","1431-01-01T00:00:00Z","established","earth"],["___","l�ngm_n ch_ng",115.5799372,40.79682558,"longqing 2","1568-01-01T00:00:00Z","fortified with brick","earth and brick"],["____","l�ngm_n gu_nb_o",115.4637926,40.77874424,"xuande 3","1428-01-01T00:00:00Z","established","earth"],["____","l�ngm_n gu_nb_o",115.4637926,40.77874424,"jiajing 43","1564-01-01T00:00:00Z","fortified","earth"],["____","l�ngm_n gu_nb_o",115.4637926,40.77874424,"longqing 3","1569-01-01T00:00:00Z","fortified","earth and brick"],["____","l�ngm_n gu_nb_o",115.4637926,40.77874424,"wanli 13","1585-01-01T00:00:00Z","fortified with brick","brick"],["___","zh�o chu_nb_o",115.3519552,40.68267845,"xuande 3","1428-01-01T00:00:00Z","established","earth"],["___","zh�o chu_nb_o",115.3519552,40.68267845,"jiajing 13","1534-01-01T00:00:00Z","fortified","earth"],["___","zh�o chu_nb_o",115.3519552,40.68267845,"longqing 4","1570-01-01T00:00:00Z","fortified","brick"],["___","y�ngf�ngb_o",115.0179021,40.77560522,"wanli 9","1581-01-01T00:00:00Z","fortified with brick","brick"],["____","q_ngbi_n k_ub_o",115.0886266,40.78444426,"chenghua 0","1465-01-01T00:00:00Z","established","earth"],["____","q_ngbi_n k_ub_o",115.0886266,40.78444426,"hongzhi 2","1489-01-01T00:00:00Z","fortified","earth"],["____","q_ngbi_n k_ub_o",115.0886266,40.78444426,"jiajing 43","1564-01-01T00:00:00Z","fortified","earth"],["____","q_ngbi_n k_ub_o",115.0886266,40.78444426,"wanli 17","1589-01-01T00:00:00Z","fortified with brick","brick"]],"fields":[{"name":"name_ch","type":"string","format":"","analyzerType":"STRING"},{"name":"name_en","type":"string","format":"","analyzerType":"STRING"},{"name":"Lon","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Lat","type":"real","format":"","analyzerType":"FLOAT"},{"name":"year 1_ch","type":"string","format":"","analyzerType":"STRING"},{"name":"year 1_en","type":"timestamp","format":"YYYY-M-DTH:m:s","analyzerType":"DATETIME"},{"name":"state","type":"string","format":"","analyzerType":"STRING"},{"name":"material","type":"string","format":"","analyzerType":"STRING"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[{"dataId":["ih8u79arb6"],"id":"c77fn3vw4","name":["year 1_en"],"type":"timeRange","value":[-18807897600000,-18639279359999],"enlarged":true,"plotType":"histogram","animationWindow":"incremental","yAxis":null,"speed":1}],"layers":[{"id":"jsc33bs","type":"point","config":{"dataId":"ih8u79arb6","label":"Point","color":[18,92,119],"columns":{"lat":"Lat","lng":"Lon","altitude":null},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.8,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"ColorBrewer RdYlBu-5","type":"diverging","category":"ColorBrewer","colors":["#d7191c","#fdae61","#ffffbf","#abd9e9","#2c7bb6"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[0,50],"filled":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":{"name":"material","type":"string"},"colorScale":"ordinal","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"ih8u79arb6":[{"name":"name_ch","format":null},{"name":"name_en","format":null},{"name":"Lon","format":null},{"name":"Lat","format":null},{"name":"year 1_ch","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":40.33233193,"longitude":115.2777323,"pitch":0,"zoom":8,"isSplit":false},"mapStyle":{"styleType":"dark","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[9.665468314072013,17.18305478057247,31.1442867897876],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
